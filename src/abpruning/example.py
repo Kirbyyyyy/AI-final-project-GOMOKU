@@ -91,6 +91,7 @@ def Isterminate(board):#判断场上是否胜负已分
 	return False
 
 def abpSearch(board, alpha, beta, depth, maxdep, step):
+	steprecord = 0
 	action = [-1,-1]
 	if depth%2 == maxdep%2:##max节点，我方行动
 		# if Isterminate(board):
@@ -106,9 +107,17 @@ def abpSearch(board, alpha, beta, depth, maxdep, step):
 			board[x][y] = 1
 			move_v, move_action = abpSearch(board, alpha, beta, depth-1, maxdep, step+1)
 			board[x][y] = 0
-			if move_v > alpha:
+			if move_v == alpha:
+				if alpha > 0:
+					if move_step < steprecord:
+						action = [x, y]
+				else:
+					if move_step > steprecord:
+						action = [x, y]
+			elif move_v > alpha:
 				action = [x, y]
 				alpha = move_v
+				steprecord = dotspace[i].step
 			if alpha >= beta:
 				return alpha, action
 		return alpha, action
@@ -128,8 +137,15 @@ def abpSearch(board, alpha, beta, depth, maxdep, step):
 			x = dotspace[i].action[0]
 			y = dotspace[i].action[1]
 			board[x][y] = 2
-			move_v, move_action = abpSearch(board,alpha,beta,depth-1,maxdep)
+			move_v, move_action = abpSearch(board, alpha, beta, depth-1, maxdep, step+1)
 			board[x][y] = 0
+			if move_v == beta:
+				if beta > 0:
+					if move_step < steprecord:
+						action = [x, y]
+				else:
+					if move_step > steprecord:
+						action = [x, y]
 			if move_v < beta:
 				action = [x, y]
 				beta = move_v
