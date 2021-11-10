@@ -7,6 +7,7 @@ pp.infotext = 'name="pbrain-pyrandom", author="Jan Stransky", version="1.0", cou
 MAX_BOARD = 100
 board = [[0 for i in range(MAX_BOARD)] for j in range(MAX_BOARD)]
 begin = 1
+step = 0
 
 def brain_init():
 	if pp.width < 5 or pp.height < 5:
@@ -18,10 +19,13 @@ def brain_init():
 	pp.pipeOut("OK")
 
 def brain_restart():
+	hashtable.clear() 
+	zobrist.code = random.getrandbits(64) 
 	for x in range(pp.width):
 		for y in range(pp.height):
 			board[x][y] = 0
 	pp.pipeOut("OK")
+
 
 def isFree(x, y):
 	return x >= 0 and y >= 0 and x < pp.width and y < pp.height and board[x][y] == 0
@@ -29,12 +33,14 @@ def isFree(x, y):
 def brain_my(x, y):
 	if isFree(x,y):
 		board[x][y] = 1
+		zobrist.do(x,y,1)
 	else:
 		pp.pipeOut("ERROR my move [{},{}]".format(x, y))
 
 def brain_opponents(x, y):
 	if isFree(x,y):
 		board[x][y] = 2
+		zobrist.do(x,y,0)
 	else:
 		pp.pipeOut("ERROR opponents's move [{},{}]".format(x, y))
 
@@ -46,7 +52,12 @@ def brain_block(x, y):
 
 def brain_takeback(x, y):
 	if x >= 0 and y >= 0 and x < pp.width and y < pp.height and board[x][y] != 0:
+		if board[x][y] == 1:
+			zobrist.withdraw(x,y,1)
+		else:
+			zobrist.withdraw(x,y,0)
 		board[x][y] = 0
+
 		return 0
 	return 2
 
@@ -79,12 +90,12 @@ def Isterminate(board):#判断场上是否胜负已分
 
 	return False
 
-def abpSearch(board,alpha,beta,depth,maxdep):
+def abpSearch(board, alpha, beta, depth, maxdep, step):
 	action = [-1,-1]
 	if depth%2 == maxdep%2:##max节点，我方行动
 		# if Isterminate(board):
 		# 	return float("+inf"), [-1, -1]
-		dotspace = evaluation(board)
+		dotspace = evaluation(board, step)
 		if depth == 0:
 			return dotspace[0].value, dotspace[0].action
 		if dotspace[0].value == float("+inf"):
@@ -93,7 +104,7 @@ def abpSearch(board,alpha,beta,depth,maxdep):
 			x = dotspace[i].action[0]
 			y = dotspace[i].action[1]
 			board[x][y] = 1
-			move_v, move_action = abpSearch(board,alpha,beta,depth-1,maxdep)
+			move_v, move_action = abpSearch(board, alpha, beta, depth-1, maxdep, step+1)
 			board[x][y] = 0
 			if move_v > alpha:
 				action = [x, y]
@@ -132,6 +143,7 @@ def brain_turn():
 		return
 	i = 0
 	global begin
+	global step
 	if begin == 1:
 		for k in range(pp.width):
 			for j in range(pp.height):
@@ -149,7 +161,7 @@ def brain_turn():
 		else:
 			max_depth = 1
 			getboard = [[board[x][y] for y in range(pp.height)] for x in range(pp.width)]
-			_, move = abpSearch(getboard,float("-Inf"),float("Inf"),max_depth,max_depth)
+			_, move = abpSearch(getboard,float("-Inf"),float("Inf"),max_depth,max_depth, step)
 			flag = 0
 			if move == [-1, -1]:
 				for i in range(pp.height):
@@ -171,6 +183,7 @@ def brain_turn():
 			break
 	if i > 1:
 		pp.pipeOut("DEBUG {} coordinates didn't hit an empty field".format(i))
+	step = step + 1
 	pp.do_mymove(x, y)
 
 def brain_end():
